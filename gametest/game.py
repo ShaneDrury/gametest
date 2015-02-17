@@ -5,11 +5,12 @@ import pygame.gfxdraw
 import yaml
 
 from gametest.lib.entity import Entity
+from gametest.lib.math import transform_segment, seg_to_vec
 
 
 class Level(Entity):
     def __init__(self, polygons):
-        self.polygons = polygons
+        self.polygons = [seg_to_vec(seg) for seg in polygons]
         self.angle = 0
 
     def update(self, parent):
@@ -26,21 +27,23 @@ class Level(Entity):
 
 class Player(Entity):
     def __init__(self, polygons):
-        self.polygons = polygons
+        self.polygons = [seg_to_vec(seg) for seg in polygons]
         self.pos = (0, 0)
         self.angle = 0
         self.angle_vel = 0
         self.handling_input = False
+        self.d_angle = pow(2, 0)
+        self.max_vel = pow(2, 1)
 
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN:
             self.handling_input = True
             if event.key == pygame.K_LEFT:
-                if abs(self.angle_vel) <= pow(2, -3):
-                    self.angle_vel += pow(2, -4)
+                if abs(self.angle_vel) <= self.max_vel:
+                    self.angle_vel += self.d_angle
             elif event.key == pygame.K_RIGHT:
-                if abs(self.angle_vel) <= pow(2, -3):
-                    self.angle_vel -= pow(2, -4)
+                if abs(self.angle_vel) <= self.max_vel:
+                    self.angle_vel -= self.d_angle
         elif event.type != pygame.KEYDOWN:
             self.handling_input = False
 
@@ -49,30 +52,11 @@ class Player(Entity):
             if self.angle_vel != 0.0:
                 self.angle_vel += \
                     math.copysign(pow(2, -4), -self.angle_vel)
-        self.angle = (self.angle + self.angle_vel) % (2. * math.pi)
+        self.angle = (self.angle + self.angle_vel) % 360
 
     def transform_polygons(self):
         return [transform_segment(seg)
                 for seg in self.polygons]
-
-
-def transform_segment(seg, angle=0., translation=(0., 0.), pivot=(0., 0.)):
-    start = translate_vector(seg['start'], translation)
-    end = translate_vector(seg['end'], translation)
-    start = rotate_vector(start, angle, pivot)
-    end = rotate_vector(end, angle, pivot)
-    return {'start': start, 'end': end, 'color': seg.get('color', None)}
-
-
-def rotate_vector(vector, angle, pivot):
-    p1, p2 = pivot
-    v1, v2 = vector
-    return [(v1-p1) * math.cos(angle) + (v2-p2) * math.sin(angle) + p1,
-            -(v1-p1) * math.sin(angle) + (v2-p2) * math.cos(angle) + p2]
-
-
-def translate_vector(v, dv):
-    return [c + dc for c, dc in zip(v, dv)]
 
 
 class FirstPerson(object):
@@ -115,9 +99,9 @@ class FirstPerson(object):
     def draw_poly(self, surface, poly):
         for seg in poly:
             color = seg['color'] or (255, 85, 85)
-            pygame.draw.aaline(surface, color,
-                               seg['start'],
-                               seg['end'])
+            pygame.draw.line(surface, color,
+                             seg['start'],
+                             seg['end'])
 
     def handle_input(self):
         pygame.event.pump()
