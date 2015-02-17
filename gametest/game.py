@@ -5,16 +5,16 @@ import pygame.gfxdraw
 import yaml
 
 from gametest.lib.entity import Entity
-from gametest.lib.math import transform_segment, seg_to_vec
+from gametest.lib.math import transform_segment, seg_to_vec, reflect_seg
 
 
 class Level(Entity):
     def __init__(self, polygons):
-        self.polygons = [seg_to_vec(seg) for seg in polygons]
+        self.polygons = polygons
         self.angle = 0
 
     def update(self, parent):
-        self.angle = -parent.entities['player'].angle
+        self.angle = parent.entities['player'].angle
 
     def handle_event(self, event):
         pass
@@ -27,13 +27,13 @@ class Level(Entity):
 
 class Player(Entity):
     def __init__(self, polygons):
-        self.polygons = [seg_to_vec(seg) for seg in polygons]
+        self.polygons = polygons
         self.pos = (0, 0)
         self.angle = 0
         self.angle_vel = 0
         self.handling_input = False
-        self.d_angle = pow(2, 0)
-        self.max_vel = pow(2, 1)
+        self.d_angle = 1
+        self.max_vel = 2
 
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN:
@@ -51,7 +51,7 @@ class Player(Entity):
         if not self.handling_input:
             if self.angle_vel != 0.0:
                 self.angle_vel += \
-                    math.copysign(pow(2, -4), -self.angle_vel)
+                    math.copysign(self.d_angle, -self.angle_vel)
         self.angle = (self.angle + self.angle_vel) % 360
 
     def transform_polygons(self):
@@ -98,7 +98,7 @@ class FirstPerson(object):
 
     def draw_poly(self, surface, poly):
         for seg in poly:
-            color = seg['color'] or (255, 85, 85)
+            color = seg.get('color', (255, 85, 85))
             pygame.draw.line(surface, color,
                              seg['start'],
                              seg['end'])
@@ -124,9 +124,10 @@ class FirstPerson(object):
 
 if __name__ == "__main__":
     with open('level.yaml', 'r') as f:
-        level_poly = yaml.load(f)
+        level_poly = [seg_to_vec(seg) for seg in yaml.load(f)]
     with open('player.yaml', 'r') as f:
-        player_poly = yaml.load(f)
+        player_poly = [seg_to_vec(seg) for seg in yaml.load(f)]
+        player_poly = [reflect_seg(seg) for seg in player_poly]
     surface = pygame.display.set_mode((640, 360))
     player = Player(player_poly)
     level = Level(level_poly)
