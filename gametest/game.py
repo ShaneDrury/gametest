@@ -2,6 +2,7 @@ import math
 
 import pygame
 import pygame.gfxdraw
+from pygame.rect import Rect
 import yaml
 
 from gametest.lib.entity import Entity
@@ -20,9 +21,28 @@ class Level(Entity):
         pass
 
     def transform_polygons(self):
-        return [transform_segment(seg,
-                                  angle=self.angle)
+        return [transform_segment(seg, angle=self.angle)
                 for seg in self.polygons]
+
+
+class Sector(object):
+    """
+    A section of a surface.
+    """
+    def transform(self, poly):
+        pass
+
+
+class RectSector(Sector):
+    def __init__(self, rect):
+        self.rect = rect
+
+    def transform(self, poly):
+        return [transform_segment(
+            seg,
+            translation=(self.rect.left + self.rect.width/2,
+                         self.rect.top + self.rect.height/2))
+                for seg in poly]
 
 
 class Player(Entity):
@@ -50,13 +70,11 @@ class Player(Entity):
     def update(self, parent):
         if not self.handling_input:
             if self.angle_vel != 0.0:
-                self.angle_vel += \
-                    math.copysign(self.d_angle, -self.angle_vel)
+                self.angle_vel += math.copysign(self.d_angle, -self.angle_vel)
         self.angle = (self.angle + self.angle_vel) % 360
 
     def transform_polygons(self):
-        return [transform_segment(seg)
-                for seg in self.polygons]
+        return [transform_segment(seg) for seg in self.polygons]
 
 
 class FirstPerson(object):
@@ -66,6 +84,10 @@ class FirstPerson(object):
         self.surface = surface
         self.dim = self.surface.get_size()
         self.fps_clock = pygame.time.Clock()
+        self.sectors = {
+            RectSector(Rect(0, 0, self.dim[0]/2, self.dim[1])):
+                ['player', 'level']
+        }
         self.mouse_pos = (0, 0)
         self.keydown = False
 
@@ -84,24 +106,18 @@ class FirstPerson(object):
 
     def render_frame(self):
         self.surface.fill((255, 255, 255))
-        for e in self.entities.values():
-            poly = e.transform_polygons()
-            self.draw_poly(self.surface,
-                           self.transform_poly(poly))
+        for sector, entities in self.sectors.items():
+            for e in entities:
+                entity = self.entities[e]
+                poly = sector.transform(entity.transform_polygons())
+                self.draw_poly(self.surface, poly)
         self.fps_clock.tick(60)
         pygame.display.update()
-
-    def transform_poly(self, poly):
-        return [transform_segment(seg,
-                                  translation=(self.dim[0]/2, self.dim[1]/2))
-                for seg in poly]
 
     def draw_poly(self, surface, poly):
         for seg in poly:
             color = seg.get('color', (255, 85, 85))
-            pygame.draw.line(surface, color,
-                             seg['start'],
-                             seg['end'])
+            pygame.draw.line(surface, color, seg['start'], seg['end'])
 
     def handle_input(self):
         pygame.event.pump()
@@ -128,7 +144,7 @@ if __name__ == "__main__":
     with open('player.yaml', 'r') as f:
         player_poly = [seg_to_vec(seg) for seg in yaml.load(f)]
         player_poly = [reflect_seg(seg) for seg in player_poly]
-    surface = pygame.display.set_mode((640, 360))
+    surface = pygame.display.set_mode((1280, 480))
     player = Player(player_poly)
     level = Level(level_poly)
     demo = FirstPerson(level, player, surface)

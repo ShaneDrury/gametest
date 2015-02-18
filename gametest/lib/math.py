@@ -26,11 +26,10 @@ def rotate_vector(vector, angle, pivot):
     return (vector - pivot).rotate(angle) + pivot
 
 
-def translate_vector(v, dv):
-    return v + dv
-
-
 def seg_to_vec(seg):
+    """
+    Turn arrays into Vector2s
+    """
     return update_seg(seg, Vector2)
 
 
