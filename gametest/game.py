@@ -1,28 +1,43 @@
-import math
-
 import pygame
+
 import pygame.gfxdraw
+from pygame.math import Vector2
 from pygame.rect import Rect
 import yaml
 
+from gametest.lib.level import Level
 from gametest.lib.entity import Entity
+
 from gametest.lib.math import transform_segment, seg_to_vec, reflect_seg
+from gametest.lib.player import Player
 
 
-class Level(Entity):
-    def __init__(self, polygons):
-        self.polygons = polygons
+class View3D(Entity):
+    def __init__(self, sector, level):
+        self.level = level.polygons
         self.angle = 0
+        self.pos = Vector2(0, 0)
+        self.sector = sector
 
     def update(self, parent):
         self.angle = parent.entities['player'].angle
+        self.pos = parent.entities['player'].pos
 
     def handle_event(self, event):
         pass
 
-    def transform_polygons(self):
-        return [transform_segment(seg, angle=self.angle)
-                for seg in self.polygons]
+    def draw(self):
+        # for x, y in iter_scan(self.sector.rect):
+        #     pass
+        return self.level
+
+
+def iter_scan(rect):
+    min_x, min_y = rect.bottomleft
+    max_x, max_y = rect.topright
+    for y in range(min_y, max_y + 1, -1):
+        for x in range(min_x, max_x + 1):
+            yield (x, y)
 
 
 class Sector(object):
@@ -45,49 +60,22 @@ class RectSector(Sector):
                 for seg in poly]
 
 
-class Player(Entity):
-    def __init__(self, polygons):
-        self.polygons = polygons
-        self.pos = (0, 0)
-        self.angle = 0
-        self.angle_vel = 0
-        self.handling_input = False
-        self.d_angle = 1
-        self.max_vel = 2
-
-    def handle_event(self, event):
-        if event.type == pygame.KEYDOWN:
-            self.handling_input = True
-            if event.key == pygame.K_LEFT:
-                if abs(self.angle_vel) <= self.max_vel:
-                    self.angle_vel += self.d_angle
-            elif event.key == pygame.K_RIGHT:
-                if abs(self.angle_vel) <= self.max_vel:
-                    self.angle_vel -= self.d_angle
-        elif event.type != pygame.KEYDOWN:
-            self.handling_input = False
-
-    def update(self, parent):
-        if not self.handling_input:
-            if self.angle_vel != 0.0:
-                self.angle_vel += math.copysign(self.d_angle, -self.angle_vel)
-        self.angle = (self.angle + self.angle_vel) % 360
-
-    def transform_polygons(self):
-        return [transform_segment(seg) for seg in self.polygons]
-
-
 class FirstPerson(object):
     def __init__(self, level, player, surface):
-        self.entities = {'player': player, 'level': level}
         self.running = True
         self.surface = surface
         self.dim = self.surface.get_size()
         self.fps_clock = pygame.time.Clock()
+        right_sector = RectSector(Rect(self.dim[0]/2, 0, self.dim[0]/2, self.dim[1]))
         self.sectors = {
             RectSector(Rect(0, 0, self.dim[0]/2, self.dim[1])):
-                ['player', 'level']
+                ['player', 'level'],  # TODO: ref obj directly?
+            right_sector:
+                ['view_3d']
         }
+        view_3d = View3D(right_sector, level)
+        self.entities = {'player': player, 'level': level,
+                         'view_3d': view_3d}
         self.mouse_pos = (0, 0)
         self.keydown = False
 
@@ -109,7 +97,7 @@ class FirstPerson(object):
         for sector, entities in self.sectors.items():
             for e in entities:
                 entity = self.entities[e]
-                poly = sector.transform(entity.transform_polygons())
+                poly = sector.transform(entity.draw())
                 self.draw_poly(self.surface, poly)
         self.fps_clock.tick(60)
         pygame.display.update()

@@ -13,5 +13,5 @@ class Entity(object):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def transform_polygons(self):
+    def draw(self):
         raise NotImplementedError()
