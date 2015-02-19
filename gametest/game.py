@@ -1,63 +1,13 @@
 import pygame
-
 import pygame.gfxdraw
-from pygame.math import Vector2
 from pygame.rect import Rect
 import yaml
 
 from gametest.lib.level import Level
-from gametest.lib.entity import Entity
-
-from gametest.lib.math import transform_segment, seg_to_vec, reflect_seg
+from gametest.lib.math import seg_to_vec, reflect_seg, transform_segment
 from gametest.lib.player import Player
-
-
-class View3D(Entity):
-    def __init__(self, sector, level):
-        self.level = level.polygons
-        self.angle = 0
-        self.pos = Vector2(0, 0)
-        self.sector = sector
-
-    def update(self, parent):
-        self.angle = parent.entities['player'].angle
-        self.pos = parent.entities['player'].pos
-
-    def handle_event(self, event):
-        pass
-
-    def draw(self):
-        # for x, y in iter_scan(self.sector.rect):
-        #     pass
-        return self.level
-
-
-def iter_scan(rect):
-    min_x, min_y = rect.bottomleft
-    max_x, max_y = rect.topright
-    for y in range(min_y, max_y + 1, -1):
-        for x in range(min_x, max_x + 1):
-            yield (x, y)
-
-
-class Sector(object):
-    """
-    A section of a surface.
-    """
-    def transform(self, poly):
-        pass
-
-
-class RectSector(Sector):
-    def __init__(self, rect):
-        self.rect = rect
-
-    def transform(self, poly):
-        return [transform_segment(
-            seg,
-            translation=(self.rect.left + self.rect.width/2,
-                         self.rect.top + self.rect.height/2))
-                for seg in poly]
+from gametest.lib.sector import RectSector
+from gametest.lib.view import View3D
 
 
 class FirstPerson(object):
@@ -131,8 +81,9 @@ if __name__ == "__main__":
         level_poly = [seg_to_vec(seg) for seg in yaml.load(f)]
     with open('player.yaml', 'r') as f:
         player_poly = [seg_to_vec(seg) for seg in yaml.load(f)]
-        player_poly = [reflect_seg(seg) for seg in player_poly]
-    surface = pygame.display.set_mode((1280, 480))
+        player_poly = [transform_segment(seg, angle=90) for seg in player_poly]
+        # player_poly = [reflect_seg(seg) for seg in player_poly]
+    surface = pygame.display.set_mode((200, 100))
     player = Player(player_poly)
     level = Level(level_poly)
     demo = FirstPerson(level, player, surface)

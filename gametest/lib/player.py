@@ -8,7 +8,7 @@ from gametest.lib.math import transform_segment
 class Player(Entity):
     def __init__(self, polygons):
         self.polygons = polygons
-        self.pos = Vector2(0, 0)
+        self.pos = Vector2(50, 50)
         self.angle = 0
         self.angle_vel = 0
         self.handling_input = False
